@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service Reliability Checker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --down: #ef4444;
+      --prod: #16a34a;
+      --staging: #2563eb;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      margin: 24px 0 10px;
+      font-size: 20px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .card:hover {
+      border-color: #64748b;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .name {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      color: white;
+      text-transform: capitalize;
+    }
+
+    .badge.production {
+      background: var(--prod);
+    }
+
+    .badge.staging {
+      background: var(--staging);
+    }
+
+    .status {
+      margin: 10px 0;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .healthy { color: var(--ok); }
+    .degraded { color: var(--warn); }
+    .down { color: var(--down); }
+
+    .line {
+      margin: 6px 0;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    .hint {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .history-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #93c5fd;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .chat {
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: var(--card);
+      padding: 12px;
+      margin-top: 16px;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .messages {
+      max-height: 220px;
+      overflow-y: auto;
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid #334155;
+      margin-bottom: 10px;
+    }
+
+    .msg {
+      max-width: 82%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      margin: 8px 0;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .msg.user {
+      margin-left: auto;
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .msg.ai {
+      margin-right: auto;
+      background: #374151;
+      color: var(--text);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid #334155;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .drift {
+      color: var(--down);
+      font-weight: bold;
+    }
+
+    .error {
+      margin-top: 10px;
+      color: #fecaca;
+      font-size: 13px;
+      background: rgba(239, 68, 68, 0.15);
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    .empty {
+      color: var(--muted);
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 16px;
+      border: 1px dashed #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Service Reliability Checker</h1>
+    <div class="meta" id="lastUpdated">Loading...</div>
+    <div class="layout">
+      <div id="content"></div>
+
+      <div class="chat">
+        <div class="chat-title">🤖 Ask about your services</div>
+        <div class="messages" id="messages"></div>
+        <div class="chips" id="chips"></div>
+        <div class="input-row">
+          <input id="chatInput" type="text" placeholder="Ask about current service health..." />
+          <button id="askButton" type="button">Ask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const messages = document.getElementById('messages');
+    const chatInput = document.getElementById('chatInput');
+    const askButton = document.getElementById('askButton');
+    const chips = document.getElementById('chips');
+
+    const prompts = [
+      'Which services are down?',
+      'Any version drift detected?',
+      'What\'s the slowest service right now?'
+    ];
+
+    function addMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = `msg ${role}`;
+      bubble.textContent = text;
+      messages.appendChild(bubble);
+      messages.scrollTop = messages.scrollHeight;
+      return bubble;
+    }
+
+    function renderChatHistory(history) {
+      messages.innerHTML = '';
+      (history || []).forEach((entry) => {
+        addMessage('user', entry.user_message || '');
+        addMessage('ai', entry.ai_message || '');
+      });
+    }
+
+    async function loadChatHistory() {
+      try {
+        const response = await fetch('/api/chat/snapshot/history');
+        const data = await response.json();
+        renderChatHistory(data.history || []);
+      } catch (error) {
+        messages.innerHTML = '';
+      }
+    }
+
+    async function askQuestion(question) {
+      const value = (question || '').trim();
+      if (!value) {
+        return;
+      }
+
+      addMessage('user', value);
+      const thinking = addMessage('ai', 'Thinking...');
+
+      try {
+        const response = await fetch('/api/chat/snapshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: value })
+        });
+        const data = await response.json();
+        renderChatHistory(data.history || []);
+      } catch (error) {
+        thinking.textContent = 'AI assistant is temporarily unavailable. Please check the dashboard directly.';
+      }
+
+      chatInput.value = '';
+      chatInput.focus();
+    }
+
+    function renderPromptChips() {
+      chips.innerHTML = prompts
+        .map((text) => `<button type="button" class="chip" data-question="${text}">${text}</button>`)
+        .join('');
+
+      chips.querySelectorAll('.chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const question = chip.getAttribute('data-question') || '';
+          chatInput.value = question;
+          askQuestion(question);
+        });
+      });
+    }
+
+    function statusLabel(item) {
+      const latency = item.latency_ms || 0;
+      if (!item.is_healthy) {
+        return { text: '🔴 Down', cls: 'down' };
+      }
+      if (latency > 1000) {
+        return { text: '🟡 Degraded', cls: 'degraded' };
+      }
+      return { text: '🟢 Healthy', cls: 'healthy' };
+    }
+
+    function renderCards(environment, items) {
+      if (!items.length) {
+        return `<div class="empty">No ${environment} services configured.</div>`;
+      }
+
+      return `<div class="cards">${items.map((item) => {
+        const status = statusLabel(item);
+        const expectedVersion = item.expected_version || 'N/A';
+        const foundVersion = item.version_found || 'N/A';
+        const versionClass = item.version_drift ? 'drift' : '';
+        const checked = item.checked_at ? `${item.checked_at} UTC` : 'N/A';
+        const latency = item.latency_ms == null ? 'N/A' : `${item.latency_ms} ms`;
+        const historyUrl = `/history/${encodeURIComponent(item.service_name)}`;
+
+        return `
+          <div class="card">
+            <div class="header">
+              <h3 class="name">${item.service_name}</h3>
+              <span class="badge ${item.environment}">${item.environment}</span>
+            </div>
+            <div class="status ${status.cls}">${status.text}</div>
+            <div class="line">Last checked: ${checked}</div>
+            <div class="line">Latency: ${latency}</div>
+            <div class="line ${versionClass}">Version: ${foundVersion} (expected ${expectedVersion})</div>
+            ${!item.is_healthy && item.error_message ? `<div class="error">Error: ${item.error_message}</div>` : ''}
+            <a class="history-link" href="${historyUrl}">View History</a>
+            <div class="hint">Review latest logs and ask AI about this service</div>
+          </div>
+        `;
+      }).join('')}</div>`;
+    }
+
+    function renderStatus(data) {
+      const production = data.filter((item) => item.environment === 'production');
+      const staging = data.filter((item) => item.environment === 'staging');
+      const others = data.filter((item) => item.environment !== 'production' && item.environment !== 'staging');
+
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="section-title">Production</div>
+        ${renderCards('production', production)}
+        <div class="section-title">Staging</div>
+        ${renderCards('staging', staging)}
+        ${others.length ? `<div class="section-title">Other</div>${renderCards('other', others)}` : ''}
+      `;
+
+      document.getElementById('lastUpdated').textContent = `Last refreshed: ${new Date().toLocaleString()}`;
+    }
+
+    async function fetchStatus() {
+      try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        renderStatus(data);
+      } catch (error) {
+        document.getElementById('content').innerHTML = `<div class="empty">Failed to load status: ${error}</div>`;
+      }
+    }
+
+    fetchStatus();
+    loadChatHistory();
+    renderPromptChips();
+    askButton.addEventListener('click', () => askQuestion(chatInput.value));
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        askQuestion(chatInput.value);
+      }
+    });
+    setInterval(fetchStatus, 30000);
+  </script>
+</body>
+</html>

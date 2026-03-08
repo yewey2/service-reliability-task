@@ -71,7 +71,7 @@ health_checks:
   - `insert_check(result: dict)` — write one poll result
   - `get_latest_per_service()` — one row per service, most recent only
   - `get_history(service_name, limit=50)` — last N checks for a service
-  - `purge_old_records(days=7)` — delete records older than 7 days, call this on startup
+  - `purge_old_records(days=90)` — delete records older than 7 days, call this on startup
 
 ---
 
@@ -211,7 +211,7 @@ jinja2
 ### `.env.example`
 ```
 TELEGRAM_API_KEY=your_bot_token_here
-TELEGRAM_CHAT_IDS=260281460,-1003778914113
+TELEGRAM_CHAT_IDS=your_telegram_id_1,your_telegram_id_2
 ```
 
 ---

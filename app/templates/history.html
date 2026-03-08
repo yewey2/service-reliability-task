@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service History - {{ service_name }}</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --good: rgba(34, 197, 94, 0.16);
+      --warn: rgba(245, 158, 11, 0.18);
+      --bad: rgba(239, 68, 68, 0.18);
+      --user: #2563eb;
+      --ai: #374151;
+      --border: #334155;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .back {
+      color: #93c5fd;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin: 8px 0 16px;
+    }
+
+    .table-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+      margin-bottom: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr.healthy { background: var(--good); }
+    tr.drift { background: var(--warn); }
+    tr.unhealthy { background: var(--bad); }
+
+    .chat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      padding: 12px;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .messages {
+      max-height: 230px;
+      overflow-y: auto;
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .msg {
+      max-width: 82%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      margin: 8px 0;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .msg.user {
+      margin-left: auto;
+      background: var(--user);
+      color: #fff;
+    }
+
+    .msg.ai {
+      margin-right: auto;
+      background: var(--ai);
+      color: var(--text);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="historyPage" data-service-name="{{ service_name }}">
+    <div class="topbar">
+      <h1>History: {{ service_name }}</h1>
+      <a class="back" href="/">← Back to dashboard</a>
+    </div>
+    <div class="meta" id="lastUpdated">Loading history...</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Status</th>
+            <th>Latency</th>
+            <th>Version Found</th>
+            <th>Healthy</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td class="empty" colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chat">
+      <div class="chat-title">🤖 Ask about this service history</div>
+      <div class="messages" id="messages"></div>
+      <div class="chips" id="chips"></div>
+      <div class="input-row">
+        <input id="chatInput" type="text" placeholder="Ask about this service history..." />
+        <button id="askButton" type="button">Ask</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const serviceName = document.getElementById('historyPage').dataset.serviceName || '';
+    const historyBody = document.getElementById('historyBody');
+    const lastUpdated = document.getElementById('lastUpdated');
+
+    const messages = document.getElementById('messages');
+    const chatInput = document.getElementById('chatInput');
+    const askButton = document.getElementById('askButton');
+    const chips = document.getElementById('chips');
+
+    const prompts = [
+      'Has this service been stable?',
+      'When did it last go down?',
+      'Is there a version drift pattern?'
+    ];
+
+    function addMessage(role, text) {
+      const bubble = document.createElement('div');
+      bubble.className = `msg ${role}`;
+      bubble.textContent = text;
+      messages.appendChild(bubble);
+      messages.scrollTop = messages.scrollHeight;
+      return bubble;
+    }
+
+    function renderChatHistory(history) {
+      messages.innerHTML = '';
+      (history || []).forEach((entry) => {
+        addMessage('user', entry.user_message || '');
+        addMessage('ai', entry.ai_message || '');
+      });
+    }
+
+    async function loadChatHistory() {
+      try {
+        const response = await fetch(`/api/chat/history/${encodeURIComponent(serviceName)}/messages`);
+        const data = await response.json();
+        renderChatHistory(data.history || []);
+      } catch (error) {
+        messages.innerHTML = '';
+      }
+    }
+
+    async function askQuestion(question) {
+      const value = (question || '').trim();
+      if (!value) {
+        return;
+      }
+
+      addMessage('user', value);
+      const thinking = addMessage('ai', 'Thinking...');
+
+      try {
+        const response = await fetch(`/api/chat/history/${encodeURIComponent(serviceName)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: value })
+        });
+        const data = await response.json();
+        renderChatHistory(data.history || []);
+      } catch (error) {
+        thinking.textContent = 'AI assistant is temporarily unavailable. Please check the dashboard directly.';
+      }
+
+      chatInput.value = '';
+      chatInput.focus();
+    }
+
+    function renderPromptChips() {
+      chips.innerHTML = prompts
+        .map((text) => `<button type="button" class="chip" data-question="${text}">${text}</button>`)
+        .join('');
+
+      chips.querySelectorAll('.chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const question = chip.getAttribute('data-question') || '';
+          chatInput.value = question;
+          askQuestion(question);
+        });
+      });
+    }
+
+    function rowClass(item) {
+      if (!item.is_healthy) {
+        return 'unhealthy';
+      }
+      if (item.version_drift) {
+        return 'drift';
+      }
+      return 'healthy';
+    }
+
+    function renderRows(rows) {
+      if (!rows.length) {
+        historyBody.innerHTML = '<tr><td class="empty" colspan="6">No checks found for this service.</td></tr>';
+        return;
+      }
+
+      historyBody.innerHTML = rows.map((item) => {
+        const status = item.status_code == null ? 'N/A' : item.status_code;
+        const latency = item.latency_ms == null ? 'N/A' : `${item.latency_ms} ms`;
+        const versionFound = item.version_found || 'N/A';
+        const healthy = item.is_healthy ? 'Yes' : 'No';
+        const error = item.error_message || '-';
+        return `
+          <tr class="${rowClass(item)}">
+            <td>${item.checked_at || 'N/A'} UTC</td>
+            <td>${status}</td>
+            <td>${latency}</td>
+            <td>${versionFound}</td>
+            <td>${healthy}</td>
+            <td>${error}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function fetchHistory() {
+      try {
+        const response = await fetch(`/api/history/${encodeURIComponent(serviceName)}?limit=10`);
+        const data = await response.json();
+        renderRows(Array.isArray(data) ? data.slice(0, 10) : []);
+        lastUpdated.textContent = `Last refreshed: ${new Date().toLocaleString()}`;
+      } catch (error) {
+        historyBody.innerHTML = `<tr><td class="empty" colspan="6">Failed to load history: ${error}</td></tr>`;
+      }
+    }
+
+    askButton.addEventListener('click', () => askQuestion(chatInput.value));
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        askQuestion(chatInput.value);
+      }
+    });
+
+    renderPromptChips();
+    fetchHistory();
+    loadChatHistory();
+  </script>
+</body>
+</html>

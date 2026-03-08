@@ -1,0 +1,25 @@
+{
+  "services": [
+    {
+      "name": "JSONPlaceholder",
+      "url": "https://jsonplaceholder.typicode.com/posts/1",
+      "expected_version": null,
+      "environment": "production",
+      "interval_seconds": 15
+    },
+    {
+      "name": "HTTPBin Health",
+      "url": "https://httpbin.org/status/200",
+      "expected_version": "1.0.0",
+      "environment": "staging",
+      "interval_seconds": 20
+    },
+    {
+      "name": "Broken Service",
+      "url": "https://httpbin.org/status/500",
+      "expected_version": "1.0.0",
+      "environment": "staging",
+      "interval_seconds": 15
+    }
+  ]
+}

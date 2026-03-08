@@ -1,5 +1,7 @@
 # Thought process and notes (done by human)
 
+# Start: 2.08pm
+
 ## Requirements portion
 "Accept a list or configuration file of services (name, URL, expected version)."
 
@@ -19,6 +21,8 @@
     - But maintaining it may be concern. Especially JSON file / SQLite, may bloat the entire repository
   - Database: likely a better alternative
     - To consider - SQL or NoSQL? 
+      -  NoSQL can likely scale better if there are other variables required, e.g. more than version history
+      -  But IF only a few columns required, then SQL is ok. Use SQLite.
     - Downside: Likely will have associated costs once project becomes bigger...
       - Meaning we likely need to purge on a periodic basis to maintain size...
 - Purge constraints: 
@@ -32,6 +36,7 @@
 - Or built directly in the same backend that serves a simple HTML page
   - Pros: easier to manage since only 1 repo
   - Cons: harder to scale separately. may get messy in the future especially if multiple developers are working on frontend / backend separately
+  - Decide to do up dashboard in same environment for easier management and submission. In the future, if we want to scale up, likely require a separate service for ease of maintenance.
 
 "Provide a Dockerfile (and optionally docker-compose.yml) to run the app easily."
 
